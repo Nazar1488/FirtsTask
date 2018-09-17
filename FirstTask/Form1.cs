@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
@@ -13,13 +14,15 @@ namespace FirstTask
 {
     public partial class Form1 : Form
     {
-        private Square _square;
+        private readonly Pen _pen;
+        private readonly List<Square> _squares;
         private Bitmap _image;
-        private Pen _pen;
+        private Square _square;
 
         public Form1()
         {
             InitializeComponent();
+            _squares = new List<Square>();
             backgroundWorker.WorkerReportsProgress = true;
             backgroundWorker.WorkerSupportsCancellation = true;
             backgroundWorker.DoWork += DoWork;
@@ -63,19 +66,24 @@ namespace FirstTask
             var centerY = (_square.BottomLeft.Y + _square.UpperRight.Y) / 2;
             var centerPoint = new PointF(centerX, centerY);
             var resultSquare = new Square();
-            for (float i = 0; i <= angle; ++i)
+            _squares.Add(_square);
+            for (float i = 1; i <= angle; ++i)
             {
                 if (worker.CancellationPending)
                 {
                     e.Cancel = true;
                     break;
                 }
+
                 resultSquare = SquareRotator.Rotate(_square, centerPoint, (int)i);
-                PictureBox.Image = SquarePainter.Paint(resultSquare, _pen, PictureBox.Width, PictureBox.Height);
+                _squares.Add(resultSquare);
+                PictureBox.Image = SquarePainter.Paint(_squares, _pen, PictureBox.Width, PictureBox.Height);
+                _squares.RemoveAt(_squares.Count - 1);
                 worker.ReportProgress((int)(i / angle * 100));
                 Thread.Sleep(Convert.ToInt32(e.Argument));
             }
 
+            _squares.Add(resultSquare);
             _square = resultSquare;
         }
 
@@ -102,16 +110,19 @@ namespace FirstTask
 
         private void SideTextBox_TextChanged(object sender, EventArgs e)
         {
+            _square = ReadSquare();
             PaintSquare();
         }
 
         private void UpperLeftCornerXTextBox_TextChanged(object sender, EventArgs e)
         {
+            _square = ReadSquare();
             PaintSquare();
         }
 
         private void UpperLeftCornerYTextBox_TextChanged(object sender, EventArgs e)
         {
+            _square = ReadSquare();
             PaintSquare();
         }
 
@@ -132,6 +143,12 @@ namespace FirstTask
             PaintSquare();
         }
 
+        private Square ReadSquare()
+        {
+            return SquareBuilder.Build(float.Parse(UpperLeftCornerXTextBox.Text),
+                float.Parse(UpperLeftCornerYTextBox.Text), float.Parse(SideTextBox.Text));
+        }
+
         private void PaintSquare()
         {
             if (UpperLeftCornerXTextBox.Text.Length == 0)
@@ -150,10 +167,16 @@ namespace FirstTask
             }
 
             RotateButton.Enabled = true;
-            _square = SquareBuilder.Build(float.Parse(UpperLeftCornerXTextBox.Text),
-                float.Parse(UpperLeftCornerYTextBox.Text), float.Parse(SideTextBox.Text));
-            _image = SquarePainter.Paint(_square, _pen, PictureBox.Width, PictureBox.Height);
+            _squares.Add(_square);
+            _image = SquarePainter.Paint(_squares, _pen, PictureBox.Width, PictureBox.Height);
+            _squares.RemoveAt(_squares.Count - 1);
             PictureBox.Image = _image;
+        }
+
+        private void ClearButton_Click(object sender, EventArgs e)
+        {
+            _squares.Clear();
+            PictureBox.Image = null;
         }
     }
 }
